@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>โปรเเกรมนับจำนวนเหรียญ</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            min-height: 100vh;
+        }
+
+        .glass-container {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 2rem;
+        }
+
+        .scanner-bar {
+            position: absolute;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(to right, transparent, #22d3ee, transparent);
+            box-shadow: 0 0 15px #22d3ee;
+            z-index: 20;
+            animation: scan-move 2.5s ease-in-out infinite;
+            display: none;
+        }
+
+        @keyframes scan-move {
+            0% { top: 0%; opacity: 0; }
+            50% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        .btn-glow:active { transform: scale(0.96); }
+    </style>
+</head>
+<body class="flex flex-col items-center p-4">
+
+    <div class="w-full max-w-md mt-6">
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 italic">
+                โปรเเกรมนับจำนวนเหรียญ <span class="text-white">PRO</span>
+            </h1>
+            <p class="text-[10px] text-slate-400 tracking-widest uppercase mt-1">Advanced Thai Coin Discriminator v2.2</p>
+        </div>
+
+        <div class="glass-container p-6">
+            <!-- API Key Alert -->
+            <div id="key-alert" class="hidden mb-4 p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl flex items-center gap-3">
+                <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+                <span class="text-[11px] text-amber-100">กรุณากรอก API Key ในส่วนของสคริปต์</span>
+            </div>
+
+            <!-- Interaction Area -->
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <button onclick="document.getElementById('inp-file').click()" class="flex flex-col items-center justify-center p-4 bg-slate-800/80 rounded-2xl border border-white/5 hover:bg-slate-700 transition-colors">
+                    <i class="fa-solid fa-images text-cyan-400 text-xl mb-2"></i>
+                    <span class="text-xs font-medium">อัลบั้มภาพ</span>
+                </button>
+                <button onclick="document.getElementById('inp-camera').click()" class="flex flex-col items-center justify-center p-4 bg-slate-800/80 rounded-2xl border border-white/5 hover:bg-slate-700 transition-colors">
+                    <i class="fa-solid fa-camera-viewfinder text-blue-400 text-xl mb-2"></i>
+                    <span class="text-xs font-medium">กล้องถ่ายรูป</span>
+                </button>
+            </div>
+
+            <input type="file" id="inp-file" accept="image/*" class="hidden" onchange="handleImage(event)">
+            <input type="file" id="inp-camera" accept="image/*" capture="environment" class="hidden" onchange="handleImage(event)">
+
+            <!-- Preview Section -->
+            <div id="preview-area" class="hidden space-y-4">
+                <div class="relative rounded-2xl overflow-hidden bg-black aspect-square border border-white/10">
+                    <div id="scanner" class="scanner-bar"></div>
+                    <img id="img-preview" class="w-full h-full object-contain">
+                </div>
+
+                <button id="btn-analyze" onclick="startAnalysis()" class="w-full py-4 bg-gradient-to-r from-cyan-600 to-blue-600 rounded-xl font-bold text-sm shadow-xl flex items-center justify-center gap-3 btn-glow">
+                    <span id="btn-label">วิเคราะห์เหรียญ (โหมดเน้นรายละเอียดขอบ)</span>
+                    <i id="btn-icon" class="fa-solid fa-wand-magic-sparkles"></i>
+                    <div id="loader" class="hidden w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                </button>
+            </div>
+
+            <!-- Results Section -->
+            <div id="result-area" class="hidden mt-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div class="flex items-center justify-between mb-4 px-1">
+                    <h3 class="text-xs font-bold text-cyan-400 uppercase">ผลการตรวจสอบล่าสุด</h3>
+                    <button onclick="location.reload()" class="text-[10px] text-slate-500 hover:text-white"><i class="fa-solid fa-rotate-right mr-1"></i>เริ่มใหม่</button>
+                </div>
+
+                <div id="coin-list" class="space-y-2 mb-6"></div>
+
+                <div class="bg-slate-900/80 p-5 rounded-2xl border border-white/5 flex justify-between items-center shadow-inner">
+                    <div>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase">ยอดรวมสุทธิ</p>
+                        <h2 id="total-val" class="text-4xl font-black text-white">0.00</h2>
+                    </div>
+                    <div class="bg-cyan-500/10 px-3 py-1 rounded-lg border border-cyan-500/20">
+                        <span class="text-cyan-400 font-bold text-xs font-mono tracking-tighter">THB</span>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-3 bg-blue-500/10 rounded-xl border border-blue-500/20">
+                    <p class="text-[10px] text-blue-200/80 leading-relaxed italic">
+                        <i class="fa-solid fa-circle-info mr-1 text-cyan-400"></i>
+                        AI ตรวจสอบลักษณะ 9 เหลี่ยมที่ขอบเหรียญ 5 และเปรียบเทียบขนาดสัมพัทธ์แล้ว
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = "AIzaSyC-klvuHWqdNtV6MoH2wNW4FCOpsU4bNG8"; 
+
+        let currentImgBase64 = "";
+
+        async function handleImage(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const MAX_SIZE = 2048; 
+                    let w = img.width, h = img.height;
+                    if (w > h) { if (w > MAX_SIZE) { h *= MAX_SIZE / w; w = MAX_SIZE; } }
+                    else { if (h > MAX_SIZE) { w *= MAX_SIZE / h; h = MAX_SIZE; } }
+                    canvas.width = w; canvas.height = h;
+                    ctx.drawImage(img, 0, 0, w, h);
+                    
+                    currentImgBase64 = canvas.toDataURL('image/jpeg', 0.95).split(',')[1];
+                    document.getElementById('img-preview').src = canvas.toDataURL('image/jpeg');
+                    document.getElementById('preview-area').classList.remove('hidden');
+                    document.getElementById('result-area').classList.add('hidden');
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function startAnalysis() {
+            if (!API_KEY || API_KEY.length < 10) {
+                document.getElementById('key-alert').classList.remove('hidden');
+                return;
+            }
+
+            const label = document.getElementById('btn-label');
+            const icon = document.getElementById('btn-icon');
+            const loader = document.getElementById('loader');
+            const scanner = document.getElementById('scanner');
+
+            label.innerText = "กำลังสแกนขอบเหรียญ 9 เหลี่ยม...";
+            icon.classList.add('hidden');
+            loader.classList.remove('hidden');
+            scanner.style.display = 'block';
+            document.getElementById('btn-analyze').disabled = true;
+
+            const prompt = `
+            Expert Thai Coin Identification Mode:
+            Identify and count Thai coins with extreme focus on 5 Baht vs 1 Baht distinction.
+            
+            Strict Differentiation Rules:
+            1. 5 BAHT (The "Big Silver" coin):
+               - Diameter: 24mm (Significantly larger than 1 Baht).
+               - Edge Detail: Look for a 9-sided inner rim (nonagon). This is the key identifier.
+               - Back Image: Wat Benchamabophit (The Marble Temple).
+               - Thickness: It is thicker and has more weight visually.
+            
+            2. 1 BAHT (The "Small Silver" coin):
+               - Diameter: 20mm.
+               - Edge Detail: Perfectly round and smooth rim.
+               - Back Image: Wat Phra Kaew (Emerald Buddha Temple).
+               - Appearance: Usually flatter and looks smaller compared to any surrounding 5 Baht coins.
+            
+            3. 10 BAHT: Bi-metallic (Gold center).
+            4. 2 BAHT: Distinct gold/yellow color.
+            
+            Decision Logic: 
+            - If you see a silver coin and cannot determine size, look for the 9-sided polygon pattern inside the rim. If present, it is 100% a 5 Baht coin.
+            - If the coin takes up a large portion of the photo, do not default to 5 Baht; check the temple image on the coin.
+            
+            Output strictly in JSON:
+            {
+                "items": [
+                    {"type": "เหรียญ 10 บาท", "count": 0, "value": 0},
+                    {"type": "เหรียญ 5 บาท", "count": 0, "value": 0},
+                    {"type": "เหรียญ 2 บาท", "count": 0, "value": 0},
+                    {"type": "เหรียญ 1 บาท", "count": 0, "value": 0}
+                ],
+                "grand_total": 0.00
+            }
+            `;
+
+            try {
+                const fetchWithRetry = async (url, options, retries = 5, backoff = 1000) => {
+                    try {
+                        const res = await fetch(url, options);
+                        if (!res.ok) throw new Error(res.statusText);
+                        return res;
+                    } catch (err) {
+                        if (retries <= 0) throw err;
+                        await new Promise(resolve => setTimeout(resolve, backoff));
+                        return fetchWithRetry(url, options, retries - 1, backoff * 2);
+                    }
+                };
+
+                const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [
+                                { text: prompt },
+                                { inlineData: { mimeType: "image/jpeg", data: currentImgBase64 } }
+                            ]
+                        }],
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            temperature: 0.1 
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!text) throw new Error("No response from AI");
+                
+                const result = JSON.parse(text);
+                displayResults(result);
+
+            } catch (err) {
+                console.error(err);
+                alert("เกิดข้อผิดพลาดในการวิเคราะห์ กรุณาลองใหม่อีกครั้ง");
+            } finally {
+                label.innerText = "วิเคราะห์เหรียญ (โหมดเน้นรายละเอียดขอบ)";
+                icon.classList.remove('hidden');
+                loader.classList.add('hidden');
+                scanner.style.display = 'none';
+                document.getElementById('btn-analyze').disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            const list = document.getElementById('coin-list');
+            list.innerHTML = "";
+            
+            data.items.forEach(item => {
+                if (item.count > 0) {
+                    const div = document.createElement('div');
+                    div.className = "flex justify-between items-center p-4 bg-white/5 rounded-2xl border border-white/5";
+                    
+                    let colorClass = "bg-slate-600";
+                    if (item.type.includes("10")) colorClass = "bg-gradient-to-tr from-yellow-600 to-slate-400";
+                    if (item.type.includes("2")) colorClass = "bg-yellow-500/80";
+                    if (item.type.includes("5")) colorClass = "bg-slate-400";
+                    if (item.type.includes("1")) colorClass = "bg-slate-500";
+
+                    div.innerHTML = `
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full ${colorClass} shadow-inner flex items-center justify-center text-[10px] font-bold text-white border border-white/20">
+                                ${item.type.replace(" เหรียญ", "")}
+                            </div>
+                            <div>
+                                <p class="text-sm font-bold text-slate-200">${item.type}</p>
+                                <p class="text-[10px] text-slate-500">จำนวน ${item.count} เหรียญ</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-bold text-cyan-400">+ ${item.value.toLocaleString()}</p>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                }
+            });
+
+            if (list.innerHTML === "") {
+                list.innerHTML = "<p class='text-center text-slate-500 text-xs py-4 italic'>ตรวจไม่พบเหรียญในภาพ</p>";
+            }
+
+            const totalDisplay = document.getElementById('total-val');
+            totalDisplay.innerText = data.grand_total.toLocaleString(undefined, {minimumFractionDigits: 2});
+
+            document.getElementById('result-area').classList.remove('hidden');
+            document.getElementById('result-area').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
